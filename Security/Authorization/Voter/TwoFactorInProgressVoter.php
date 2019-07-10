@@ -4,19 +4,34 @@ declare(strict_types=1);
 
 namespace Scheb\TwoFactorBundle\Security\Authorization\Voter;
 
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Scheb\TwoFactorBundle\Security\Authentication\Token\TwoFactorTokenInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\AuthenticatedVoter;
 use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Signature\LoadedJWS;
 
 class TwoFactorInProgressVoter implements VoterInterface
 {
     const IS_AUTHENTICATED_2FA_IN_PROGRESS = 'IS_AUTHENTICATED_2FA_IN_PROGRESS';
 
+    private $JWTManager;
+
+    public function __construct(JWTTokenManagerInterface $JWTManager)
+    {
+        $this->JWTManager = $JWTManager;
+    }
+
     public function vote(TokenInterface $token, $subject, array $attributes)
     {
         if (!($token instanceof TwoFactorTokenInterface)) {
             return VoterInterface::ACCESS_ABSTAIN;
+        }
+
+        $data = $this->JWTManager->decode($token->getAuthenticatedToken());
+
+        if (in_array('ROLE_2FA', $data['roles'])) {
+            return VoterInterface::ACCESS_GRANTED;
         }
 
         foreach ($attributes as $attribute) {
