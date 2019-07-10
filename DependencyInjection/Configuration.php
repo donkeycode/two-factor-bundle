@@ -22,6 +22,7 @@ class Configuration implements ConfigurationInterface
 
         $rootNode
             ->children()
+                ->scalarNode('jwt')->defaultNull()->end()
                 ->scalarNode('persister')->defaultNull()->end()
                 ->scalarNode('model_manager_name')->defaultNull()->end()
                 ->arrayNode('trusted_device')

@@ -49,6 +49,13 @@
 			<tag name="kernel.event_listener" event="scheb_two_factor.authentication.require" method="onTwoFactorAuthenticationRequest" />
 		</service>
 
+		<service id="scheb_two_factor.provider_preparation_on_interative_login_listener" class="\Scheb\TwoFactorBundle\Security\TwoFactor\Provider\TwoFactorProviderPreparationOnInteractiveLoginListener">
+			<argument type="service" id="scheb_two_factor.provider_registry" />
+			<argument>%scheb_two_factor.jwt%</argument>
+			<argument type="service" id="Psr\Container\ContainerInterface" />
+			<tag name="kernel.event_listener" event="security.interactive_login" method="onTwoFactorAuthenticationRequest" />
+		</service>
+
 		<!-- Alias for auto-wiring -->
 		<service id="Scheb\TwoFactorBundle\Security\TwoFactor\TwoFactorFirewallContext" alias="scheb_two_factor.firewall_context" public="true" />
 
@@ -58,14 +65,17 @@
 			<argument type="service" id="scheb_two_factor.firewall_context" />
 			<argument type="service" id="security.logout_url_generator" />
 			<argument>%scheb_two_factor.trusted_device.enabled%</argument>
+			<argument type="service" id="scheb_two_factor.token_factory" />
+			<argument>%scheb_two_factor.jwt%</argument>
+			<argument type="service" id="lexik_jwt_authentication.jwt_manager" />
         </service>
 
-		<service id="scheb_two_factor.security.form_renderer" class="Scheb\TwoFactorBundle\Security\TwoFactor\Provider\DefaultTwoFactorFormRenderer" lazy="true">
-			<argument type="service" id="twig" />
-			<argument>%scheb_two_factor.email.template%</argument>
-		</service>
+        <service id="scheb_two_factor.security.form_renderer" class="Scheb\TwoFactorBundle\Security\TwoFactor\Provider\DefaultTwoFactorFormRenderer" lazy="true">
+	        <argument type="service" id="twig" />
+	        <argument>%scheb_two_factor.email.template%</argument>
+	    </service>
 
-		<!-- Alias for auto-wiring -->
-		<service id="Scheb\TwoFactorBundle\Security\TwoFactor\Provider\TwoFactorFormRendererInterface" alias="scheb_two_factor.security.form_renderer" public="true" />
+        <!-- Alias for auto-wiring -->
+        <service id="Scheb\TwoFactorBundle\Security\TwoFactor\Provider\TwoFactorFormRendererInterface" alias="scheb_two_factor.security.form_renderer" public="true" />
 	</services>
 </container>

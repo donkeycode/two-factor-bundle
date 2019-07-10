@@ -22,6 +22,7 @@
 
 		<service id="scheb_two_factor.security.access.authenticated_voter" class="Scheb\TwoFactorBundle\Security\Authorization\Voter\TwoFactorInProgressVoter">
 			<tag name="security.voter" priority="249" />
+			<argument type="service" id="lexik_jwt_authentication.jwt_manager" />
 		</service>
 
         <service id="scheb_two_factor.security.access.access_decider" class="Scheb\TwoFactorBundle\Security\Authorization\TwoFactorAccessDecider">

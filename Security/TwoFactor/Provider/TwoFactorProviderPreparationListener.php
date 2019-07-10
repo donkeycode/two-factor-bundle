@@ -14,17 +14,22 @@ class TwoFactorProviderPreparationListener
      */
     private $providerRegistry;
 
-    public function __construct(TwoFactorProviderRegistry $providerRegistry)
+    private $jwt;
+
+    public function __construct(TwoFactorProviderRegistry $providerRegistry, $jwt = false)
     {
         $this->providerRegistry = $providerRegistry;
+        $this->jwt = $jwt;
     }
 
     public function onTwoFactorAuthenticationRequest(TwoFactorAuthenticationEvent $event)
     {
-        /** @var TwoFactorToken $token */
-        $token = $event->getToken();
-        $user = $token->getUser();
-        $providerName = $token->getCurrentTwoFactorProvider();
-        $this->providerRegistry->getProvider($providerName)->prepareAuthentication($user);
+        if (!$this->jwt) {
+            /** @var TwoFactorToken $token */
+            $token = $event->getToken();
+            $user = $token->getUser();
+            $providerName = $token->getCurrentTwoFactorProvider();
+            $this->providerRegistry->getProvider($providerName)->prepareAuthentication($user);
+        }
     }
 }
