@@ -15,6 +15,8 @@ class TwoFactorInProgressVoter implements VoterInterface
 {
     const IS_AUTHENTICATED_2FA_IN_PROGRESS = 'IS_AUTHENTICATED_2FA_IN_PROGRESS';
 
+    const IS_AUTHENTICATED_FULLY = 'IS_AUTHENTICATED_FULLY';
+
     private $JWTManager;
 
     public function __construct(JWTTokenManagerInterface $JWTManager)
@@ -30,14 +32,23 @@ class TwoFactorInProgressVoter implements VoterInterface
 
         $data = $this->JWTManager->decode($token->getAuthenticatedToken());
 
-        if (in_array('ROLE_2FA', $data['roles'])) {
-            return VoterInterface::ACCESS_GRANTED;
-        }
-
         foreach ($attributes as $attribute) {
             if (self::IS_AUTHENTICATED_2FA_IN_PROGRESS === $attribute) {
+                if (in_array('ROLE_2FA', $data['roles'])) {
+                    return VoterInterface::ACCESS_DENIED;
+                }
+
                 return VoterInterface::ACCESS_GRANTED;
             }
+
+            if (self::IS_AUTHENTICATED_FULLY === $attribute) {
+                if (in_array('ROLE_2FA', $data['roles'])) {
+                    return VoterInterface::ACCESS_GRANTED;
+                }
+
+                return VoterInterface::ACCESS_ABSTAIN;
+            }
+
             if (AuthenticatedVoter::IS_AUTHENTICATED_ANONYMOUSLY === $attribute) {
                 return VoterInterface::ACCESS_GRANTED;
             }

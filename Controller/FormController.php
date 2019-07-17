@@ -18,7 +18,7 @@ use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Role\Role;
 use Symfony\Component\Security\Core\Security;
 use Symfony\Component\Security\Http\Logout\LogoutUrlGenerator;
-use Symfony\Component\Security\Core\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class FormController
 {
@@ -75,8 +75,7 @@ class FormController
         LogoutUrlGenerator $logoutUrlGenerator,
         bool $trustedFeatureEnabled,
         TwoFactorTokenFactoryInterface $twoFactorTokenFactory,
-        $jwt = false,
-        JWTTokenManagerInterface $JWTManager
+        $jwt = false
     ) {
         $this->tokenStorage = $tokenStorage;
         $this->providerRegistry = $providerRegistry;
@@ -91,7 +90,7 @@ class FormController
     public function form(Request $request)
     {
         if ($this->jwt) {
-            throw new \NotFoundHttpException('Form is not activated with jwt');
+            throw new NotFoundHttpException('Form is not activated with jwt');
         }
 
         $token = $this->getTwoFactorToken();
