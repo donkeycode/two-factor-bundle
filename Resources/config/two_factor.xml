@@ -67,7 +67,6 @@
 			<argument>%scheb_two_factor.trusted_device.enabled%</argument>
 			<argument type="service" id="scheb_two_factor.token_factory" />
 			<argument>%scheb_two_factor.jwt%</argument>
-			<argument type="service" id="lexik_jwt_authentication.jwt_manager" />
         </service>
 
         <service id="scheb_two_factor.security.form_renderer" class="Scheb\TwoFactorBundle\Security\TwoFactor\Provider\DefaultTwoFactorFormRenderer" lazy="true">

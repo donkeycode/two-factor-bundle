@@ -11,6 +11,9 @@ use Symfony\Component\Security\Core\Security;
 use Symfony\Component\Security\Http\Authentication\AuthenticationSuccessHandlerInterface;
 use Symfony\Component\Security\Http\HttpUtils;
 use Symfony\Component\Security\Http\Util\TargetPathTrait;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 class DefaultAuthenticationSuccessHandler implements AuthenticationSuccessHandlerInterface
 {
@@ -36,16 +39,39 @@ class DefaultAuthenticationSuccessHandler implements AuthenticationSuccessHandle
      */
     private $firewallName;
 
-    public function __construct(HttpUtils $httpUtils, string $firewallName, array $options = [])
-    {
+    private $jwt;
+
+    /**
+     * @var TokenStorageInterface
+     */
+    private $tokenStorage;
+
+    public function __construct(
+        HttpUtils $httpUtils,
+        string $firewallName,
+        array $options = [],
+        $jwt = false,
+        JWTTokenManagerInterface $JWTManager,
+        TokenStorageInterface $tokenStorage
+    ) {
         $this->httpUtils = $httpUtils;
         $this->firewallName = $firewallName;
         $this->options = array_merge(self::DEFAULT_OPTIONS, $options);
+        $this->jwt = $jwt;
+        $this->JWTManager = $JWTManager;
+        $this->tokenStorage = $tokenStorage;
     }
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token)
     {
         $request->getSession()->remove(Security::AUTHENTICATION_ERROR);
+
+        if ($this->jwt) {
+            $token = $this->tokenStorage->getToken();
+            $token->getUser()->set2FARoles();
+
+            return new JsonResponse(['auth_token' => $this->JWTManager->create($token->getUser())]);
+        }
 
         return $this->httpUtils->createRedirectResponse($request, $this->determineRedirectTargetUrl($request));
     }
