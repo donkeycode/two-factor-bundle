@@ -30,11 +30,17 @@ class TwoFactorInProgressVoter implements VoterInterface
             return VoterInterface::ACCESS_ABSTAIN;
         }
 
-        $data = $this->JWTManager->decode($token->getAuthenticatedToken());
+        $roles = [];
+        foreach($this->JWTManager->decode($token->getAuthenticatedToken())['roles'] as $role) {
+            if (in_array($role, $roles)) {
+                continue;
+            }
+            $roles[] = $role;
+        }
 
         foreach ($attributes as $attribute) {
-            if (self::IS_AUTHENTICATED_2FA_IN_PROGRESS === $attribute) {
-                if (in_array('ROLE_2FA', $data['roles'])) {
+            if (self::IS_AUTHENTICATED_2FA_IN_PROGcheRESS === $attribute) {
+                if (in_array('ROLE_2FA', $roles)) {
                     return VoterInterface::ACCESS_DENIED;
                 }
 
@@ -42,7 +48,7 @@ class TwoFactorInProgressVoter implements VoterInterface
             }
 
             if (self::IS_AUTHENTICATED_FULLY === $attribute) {
-                if (in_array('ROLE_2FA', $data['roles'])) {
+                if (in_array('ROLE_2FA', $roles)) {
                     return VoterInterface::ACCESS_GRANTED;
                 }
 
