@@ -9,7 +9,6 @@ use Scheb\TwoFactorBundle\Security\Authentication\Token\TwoFactorTokenInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\AuthenticatedVoter;
 use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
-use Lexik\Bundle\JWTAuthenticationBundle\Signature\LoadedJWS;
 
 class TwoFactorInProgressVoter implements VoterInterface
 {
@@ -30,16 +29,10 @@ class TwoFactorInProgressVoter implements VoterInterface
             return VoterInterface::ACCESS_ABSTAIN;
         }
 
-        $roles = [];
-        foreach($this->JWTManager->decode($token->getAuthenticatedToken())['roles'] as $role) {
-            if (in_array($role, $roles)) {
-                continue;
-            }
-            $roles[] = $role;
-        }
+        $roles = $this->JWTManager->decode($token->getAuthenticatedToken())['roles'];
 
         foreach ($attributes as $attribute) {
-            if (self::IS_AUTHENTICATED_2FA_IN_PROGcheRESS === $attribute) {
+            if (self::IS_AUTHENTICATED_2FA_IN_PROGRESS === $attribute) {
                 if (in_array('ROLE_2FA', $roles)) {
                     return VoterInterface::ACCESS_DENIED;
                 }
