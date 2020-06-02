@@ -20,6 +20,8 @@ class TwoFactorProviderPreparationOnInteractiveLoginListener
 
     private $jwt;
 
+    private $loginCheckPath;
+
     private $container;
 
     public function __construct(TwoFactorProviderRegistry $providerRegistry, $jwt = false, \Psr\Container\ContainerInterface $container)
@@ -27,11 +29,12 @@ class TwoFactorProviderPreparationOnInteractiveLoginListener
         $this->providerRegistry = $providerRegistry;
         $this->jwt = $jwt;
         $this->container = $container;
+        $this->loginCheckPath = $container->getParameter('scheb_two_factor.login_check_path');
     }
 
     public function onTwoFactorAuthenticationRequest(InteractiveLoginEvent $event)
     {
-        if ($this->jwt && ($event->getRequest()->getPathInfo() == '/login_check')) {
+        if ($this->jwt && ($event->getRequest()->getPathInfo() == $this->loginCheckPath)) {
             $token = $event->getAuthenticationToken();
             $user = $token->getUser();
             if ($user->isEmailAuthEnabled()) {

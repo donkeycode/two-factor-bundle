@@ -44,6 +44,7 @@ class SchebTwoFactorExtension extends Extension
         $container->setParameter('scheb_two_factor.security_tokens', $config['security_tokens']);
         $container->setParameter('scheb_two_factor.ip_whitelist', $config['ip_whitelist']);
         $container->setParameter('scheb_two_factor.jwt', $config['jwt']);
+        $container->setParameter('scheb_two_factor.login_check_path', $config['login_check_path']);
 
         $loader = new Loader\XmlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('security.xml');
