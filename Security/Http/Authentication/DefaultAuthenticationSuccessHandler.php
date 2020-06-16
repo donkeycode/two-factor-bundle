@@ -27,7 +27,7 @@ class DefaultAuthenticationSuccessHandler implements AuthenticationSuccessHandle
     /**
      * @var HttpUtils
      */
-    private $httpUtils;
+    protected $httpUtils;
 
     /**
      * @var array
@@ -37,14 +37,14 @@ class DefaultAuthenticationSuccessHandler implements AuthenticationSuccessHandle
     /**
      * @var string
      */
-    private $firewallName;
+    protected $firewallName;
 
-    private $jwt;
+    protected $jwt;
 
     /**
      * @var TokenStorageInterface
      */
-    private $tokenStorage;
+    protected $tokenStorage;
 
     public function __construct(
         HttpUtils $httpUtils,
@@ -76,7 +76,7 @@ class DefaultAuthenticationSuccessHandler implements AuthenticationSuccessHandle
         return $this->httpUtils->createRedirectResponse($request, $this->determineRedirectTargetUrl($request));
     }
 
-    private function determineRedirectTargetUrl(Request $request): string
+    protected function determineRedirectTargetUrl(Request $request): string
     {
         if ($this->options['always_use_default_target_path']) {
             return $this->options['default_target_path'];

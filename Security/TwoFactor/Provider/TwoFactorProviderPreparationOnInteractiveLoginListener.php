@@ -37,9 +37,12 @@ class TwoFactorProviderPreparationOnInteractiveLoginListener
         if ($this->jwt && ($event->getRequest()->getPathInfo() == $this->loginCheckPath)) {
             $token = $event->getAuthenticationToken();
             $user = $token->getUser();
+
             if ($user->isEmailAuthEnabled()) {
                 $this->providerRegistry->getProvider('email')->prepareAuthentication($user);
-            } else {
+            }
+
+            if ($user->isGoogleAuthenticatorEnabled()) {
                 $this->providerRegistry->getProvider('google')->prepareAuthentication($user);
             }
         }
