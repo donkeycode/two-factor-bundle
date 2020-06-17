@@ -40,13 +40,13 @@ class TwoFactorProviderPreparationOnInteractiveLoginListener
 
             if ($user->isEmailAuthEnabled()) {
                 $this->providerRegistry->getProvider('email')->prepareAuthentication($user);
+                return;
             }
 
             if ($user->isGoogleAuthenticatorEnabled()) {
                 $this->providerRegistry->getProvider('google')->prepareAuthentication($user);
+                return;
             }
-
-            return;
         }
     }
 }
