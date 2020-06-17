@@ -45,7 +45,6 @@ class TwoFactorProviderPreparationOnInteractiveLoginListener
 
             if ($user->isGoogleAuthenticatorEnabled()) {
                 $this->providerRegistry->getProvider('google')->prepareAuthentication($user);
-                return;
             }
         }
     }
