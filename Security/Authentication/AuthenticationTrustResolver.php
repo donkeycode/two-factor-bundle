@@ -20,17 +20,17 @@ class AuthenticationTrustResolver implements AuthenticationTrustResolverInterfac
         $this->decoratedTrustResolver = $decoratedTrustResolver;
     }
 
-    public function isAnonymous(TokenInterface $token = null)
+    public function isAnonymous(?TokenInterface $token = null)
     {
         return $this->decoratedTrustResolver->isAnonymous($token);
     }
 
-    public function isRememberMe(TokenInterface $token = null)
+    public function isRememberMe(?TokenInterface $token = null)
     {
         return $this->decoratedTrustResolver->isRememberMe($token);
     }
 
-    public function isFullFledged(TokenInterface $token = null)
+    public function isFullFledged(?TokenInterface $token = null)
     {
         return !$this->isTwoFactorToken($token) && $this->decoratedTrustResolver->isFullFledged($token);
     }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Scheb\TwoFactorBundle\Security\Http\Authentication;
 
 use Symfony\Component\HttpFoundation\Request;
@@ -10,11 +12,6 @@ interface AuthenticationRequiredHandlerInterface
 {
     /**
      * Redirect to the two-factor authentication form.
-     *
-     * @param Request        $request
-     * @param TokenInterface $token
-     *
-     * @return Response
      */
     public function onAuthenticationRequired(Request $request, TokenInterface $token): Response;
 }

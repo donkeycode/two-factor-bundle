@@ -17,9 +17,14 @@ class Configuration implements ConfigurationInterface
             $rootNode = $treeBuilder->getRootNode();
         } else {
             // BC layer for symfony/config 4.1 and older
+            /** @psalm-suppress UndefinedMethod */
             $rootNode = $treeBuilder->root('scheb_two_factor');
         }
 
+        /**
+         * @psalm-suppress PossiblyNullReference
+         * @psalm-suppress PossiblyUndefinedMethod
+         */
         $rootNode
             ->children()
                 ->scalarNode('jwt')->defaultNull()->end()
@@ -36,6 +41,7 @@ class Configuration implements ConfigurationInterface
                         ->scalarNode('cookie_name')->defaultValue('trusted_device')->end()
                         ->booleanNode('cookie_secure')->defaultValue(false)->end()
                         ->scalarNode('cookie_domain')->defaultNull()->end()
+                        ->scalarNode('cookie_path')->defaultValue('/')->end()
                         ->scalarNode('cookie_same_site')
                             ->defaultValue('lax')
                             ->validate()

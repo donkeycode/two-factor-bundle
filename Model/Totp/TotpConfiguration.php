@@ -32,15 +32,15 @@ class TotpConfiguration implements TotpConfigurationInterface
     private $digits;
 
     /**
-     * @param string $secret Base32 encoded secret key
+     * @param string $secret    Base32 encoded secret key
      * @param string $algorithm Hashing algorithm to be used, see class constants for available values
-     * @param int $period Period in seconds, when the one-time password changes
-     * @param int $digits Number of digits of the one-time password
+     * @param int    $period    Period in seconds, when the one-time password changes
+     * @param int    $digits    Number of digits of the one-time password
      */
     public function __construct(string $secret, string $algorithm, int $period, int $digits)
     {
         if (!self::isValidAlgorithm($algorithm)) {
-            throw new \InvalidArgumentException('The algorithm "'.$algorithm.'" is not supported');
+            throw new \InvalidArgumentException(sprintf('The algorithm "%s" is not supported', $algorithm));
         }
 
         $this->secret = $secret;
@@ -51,14 +51,15 @@ class TotpConfiguration implements TotpConfigurationInterface
 
     private static function isValidAlgorithm(string $algorithm): bool
     {
-        return in_array(
+        return \in_array(
             $algorithm,
             [
                 self::ALGORITHM_MD5,
                 self::ALGORITHM_SHA1,
                 self::ALGORITHM_SHA256,
                 self::ALGORITHM_SHA512,
-            ]
+            ],
+            true
         );
     }
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Scheb\TwoFactorBundle\Security\TwoFactor\Provider;
 
 use Symfony\Component\HttpFoundation\Request;
@@ -9,11 +11,6 @@ interface TwoFactorFormRendererInterface
 {
     /**
      * Render the authentication form of a two-factor provider.
-     *
-     * @param Request $request
-     * @param array   $templateVars
-     *
-     * @return Response
      */
     public function renderForm(Request $request, array $templateVars): Response;
 }

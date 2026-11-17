@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Scheb\TwoFactorBundle\Security\TwoFactor;
 
 use Symfony\Component\HttpFoundation\Request;
@@ -10,8 +12,6 @@ interface AuthenticationContextInterface
 {
     /**
      * Return the security token.
-     *
-     * @return TokenInterface
      */
     public function getToken(): TokenInterface;
 
@@ -24,22 +24,16 @@ interface AuthenticationContextInterface
 
     /**
      * Return the request.
-     *
-     * @return Request
      */
     public function getRequest(): Request;
 
     /**
      * Return the session.
-     *
-     * @return SessionInterface
      */
     public function getSession(): SessionInterface;
 
     /**
      * Return the firewall name.
-     *
-     * @return string
      */
     public function getFirewallName(): string;
 }

@@ -17,6 +17,7 @@ scheb_two_factor:
         cookie_secure: false           # Set the 'Secure' (HTTPS Only) flag on the trusted device cookie
         cookie_same_site: "lax"        # The same-site option of the cookie, can be "lax", "strict" or null
         cookie_domain: ".example.com"  # Domain to use when setting the cookie, fallback to the request domain if not set
+        cookie_path: "/"               # Path to use when setting the cookie
 
     # Backup codes feature
     backup_codes:
@@ -41,7 +42,7 @@ scheb_two_factor:
         digits: 6                      # Number of digits in authentication code
         window: 1                      # How many codes before/after the current one would be accepted as valid
         template: security/2fa_form.html.twig   # Template used to render the authentication form
-    
+
     # TOTP authentication config
     totp:
         enabled: true                  # If TOTP authentication should be enabled, default false
@@ -72,12 +73,12 @@ scheb_two_factor:
         - 127.0.0.1 # One IPv4
         - 192.168.0.0/16 # IPv4 subnet
         - 2001:0db8:85a3:0000:0000:8a2e:0370:7334 # One IPv6
-        - 2001:db8:abcd:0012::0/64 # IPv6 subnet        
+        - 2001:db8:abcd:0012::0/64 # IPv6 subnet
 
     # If you want to have your own implementation to retrieve the whitelisted IPs.
     # The configuration option "ip_whitelist" becomes meaningless in such a case.
     ip_whitelist_provider: acme.custom_ip_whitelist_provider
-    
+
     # If you want to exchange/extend the TwoFactorToken class, which is used by the bundle, you can have a factory
     # service providing your own implementation.
     two_factor_token_factory: acme.custom_two_factor_token_factory
@@ -87,17 +88,19 @@ scheb_two_factor:
 # config/packages/security.yaml
 security:
     firewalls:
-        yourFirewallName:
+        your_firewall_name:
             # ...
             two_factor:
                 auth_form_path: /2fa                  # Path or route name of the two-factor form
                 check_path: /2fa_check                # Path or route name of the two-factor code check
+                post_only: false                      # If the check_path should accept the code only as a POST request
                 default_target_path: /                # Where to redirect by default after successful authentication
                 always_use_default_target_path: false # If it should always redirect to default_target_path
                 auth_code_parameter_name: _auth_code  # Name of the parameter for the two-factor authentication code
                 trusted_parameter_name: _trusted      # Name of the parameter for the trusted device option
-                multi_factor: false                   # If ALL active two-factor methods need to be fulfilled (multi-factor authentication)
-                success_handler: acme.custom_success_handler # Use a custom success handler instead of the default one 
+                multi_factor: false                   # If ALL active two-factor methods need to be fulfilled
+                                                      # (multi-factor authentication)
+                success_handler: acme.custom_success_handler # Use a custom success handler instead of the default one
                 failure_handler: acme.custom_failure_handler # Use a custom failure handler instead of the default one
 
                 # Use a custom authentication required handler instead of the default one
@@ -105,9 +108,19 @@ security:
                 # two-factor authentication form, when two-factor authentication is required.
                 authentication_required_handler: acme.custom_auth_reqired_handler
 
-                csrf_token_generator: security.csrf.token_manager # CSRF protection will be enabled if a service id of CsrfTokenManagerInterface is given. Default: null
+                # Some two-factor providers need to be "prepared", usually a code is generated and sent to the user. Per
+                # default, this happens when the two-factor form is shown. But you may want to execute preparation
+                # earlier in the user's journey.
+                prepare_on_login: false          # If the two-factor provider should be prepared right after login
+                prepare_on_access_denied: false  # The the two-factor provider should be prepared when the user has to
+                                                 # to complete two-factor authentication to view a page. This would
+                                                 # prepare right before redirecting to the two-factor form.
+
+                csrf_token_generator: security.csrf.token_manager # CSRF protection will be enabled if a service id of
+                                                                  # CsrfTokenManagerInterface is given. Default: null
                 csrf_parameter: _csrf_token                       # The default CSRF parameter name
-                csrf_token_id: two_factor                         # The default CSRF token id, used for generating the token value. It is advised to use a different id per form
+                csrf_token_id: two_factor                         # The default CSRF token id, for generating the token
+                                                                  # value. It is advised to use a different id per form.
 
                 # If you have multiple user providers registered, Symfony's security extension requires you to configure
                 # a user provider. You're forced to configure this node, although it doesn't have any effect on the
@@ -116,5 +129,6 @@ security:
 ```
 
 For detailed information on the authentication methods see the individual documentation:
+- [TOTP](providers/totp.md)
 - [Google Authenticator](providers/google.md)
 - [Email code](providers/email.md)

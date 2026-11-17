@@ -9,9 +9,11 @@ use Scheb\TwoFactorBundle\Security\Authentication\Exception\InvalidTwoFactorCode
 use Scheb\TwoFactorBundle\Security\Authentication\Exception\TwoFactorProviderNotFoundException;
 use Scheb\TwoFactorBundle\Security\Authentication\Token\TwoFactorTokenInterface;
 use Scheb\TwoFactorBundle\Security\TwoFactor\Backup\BackupCodeManagerInterface;
+use Scheb\TwoFactorBundle\Security\TwoFactor\Provider\TwoFactorProviderPreparationRecorder;
 use Scheb\TwoFactorBundle\Security\TwoFactor\Provider\TwoFactorProviderRegistry;
 use Symfony\Component\Security\Core\Authentication\Provider\AuthenticationProviderInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Exception\AuthenticationException;
 
 class TwoFactorAuthenticationProvider implements AuthenticationProviderInterface
 {
@@ -39,12 +41,30 @@ class TwoFactorAuthenticationProvider implements AuthenticationProviderInterface
      */
     private $backupCodeManager;
 
-    public function __construct(string $firewallName, array $options, TwoFactorProviderRegistry $providerRegistry, BackupCodeManagerInterface $backupCodeManager)
-    {
+    /**
+     * @var TwoFactorProviderPreparationRecorder
+     */
+    private $preparationRecorder;
+
+    /**
+     * @var bool
+     */
+    private $jwt;
+
+    public function __construct(
+        string $firewallName,
+        array $options,
+        TwoFactorProviderRegistry $providerRegistry,
+        BackupCodeManagerInterface $backupCodeManager,
+        TwoFactorProviderPreparationRecorder $preparationRecorder,
+        bool $jwt = false
+    ) {
         $this->firewallName = $firewallName;
         $this->options = array_merge(self::DEFAULT_OPTIONS, $options);
         $this->providerRegistry = $providerRegistry;
         $this->backupCodeManager = $backupCodeManager;
+        $this->preparationRecorder = $preparationRecorder;
+        $this->jwt = $jwt;
     }
 
     public function supports(TokenInterface $token)
@@ -54,17 +74,26 @@ class TwoFactorAuthenticationProvider implements AuthenticationProviderInterface
 
     public function authenticate(TokenInterface $token)
     {
-        /** @var TwoFactorTokenInterface $token */
         if (!$this->supports($token)) {
-            return null;
+            throw new AuthenticationException('The token is not supported by this authentication provider.');
         }
 
-        // Keep unauthenticated TwoFactorToken with no credentials given
+        // Keep unauthenticated TwoFactorTokenInterface with no credentials given
         if (null === $token->getCredentials()) {
             return $token;
         }
 
+        /** @var TwoFactorTokenInterface $token */
         $providerName = $token->getCurrentTwoFactorProvider();
+        if (!$providerName) {
+            throw new AuthenticationException('There is no active two-factor provider.');
+        }
+
+        // In JWT mode there is no session to record the preparation in (it happens on security.interactive_login)
+        if (!$this->jwt && !$this->preparationRecorder->isProviderPrepared($this->firewallName, $providerName)) {
+            throw new AuthenticationException(sprintf('The two-factor provider "%s" has not been prepared.', $providerName));
+        }
+
         if ($this->isValidAuthenticationCode($providerName, $token)) {
             $token->setTwoFactorProviderComplete($providerName);
             if ($this->isAuthenticationComplete($token)) {
@@ -94,6 +123,9 @@ class TwoFactorAuthenticationProvider implements AuthenticationProviderInterface
         return false;
     }
 
+    /**
+     * @param object|string $user
+     */
     private function isValidTwoFactorCode($user, string $providerName, string $authenticationCode): bool
     {
         try {
@@ -107,6 +139,9 @@ class TwoFactorAuthenticationProvider implements AuthenticationProviderInterface
         return $authenticationProvider->validateAuthenticationCode($user, $authenticationCode);
     }
 
+    /**
+     * @param object|string $user
+     */
     private function isValidBackupCode($user, string $authenticationCode): bool
     {
         if ($this->backupCodeManager->isBackupCode($user, $authenticationCode)) {

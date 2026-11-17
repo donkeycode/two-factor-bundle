@@ -14,6 +14,9 @@ class SchebTwoFactorExtension extends Extension
     const DEFAULT_TRUSTED_DEVICE_MANAGER = 'scheb_two_factor.default_trusted_device_manager';
     const DEFAULT_BACKUP_CODE_MANAGER = 'scheb_two_factor.default_backup_code_manager';
 
+    /**
+     * @return void
+     */
     public function load(array $configs, ContainerBuilder $container)
     {
         $configuration = new Configuration();
@@ -41,6 +44,7 @@ class SchebTwoFactorExtension extends Extension
         $container->setParameter('scheb_two_factor.trusted_device.cookie_secure', $config['trusted_device']['cookie_secure']);
         $container->setParameter('scheb_two_factor.trusted_device.cookie_same_site', $config['trusted_device']['cookie_same_site']);
         $container->setParameter('scheb_two_factor.trusted_device.cookie_domain', $config['trusted_device']['cookie_domain']);
+        $container->setParameter('scheb_two_factor.trusted_device.cookie_path', $config['trusted_device']['cookie_path']);
         $container->setParameter('scheb_two_factor.security_tokens', $config['security_tokens']);
         $container->setParameter('scheb_two_factor.ip_whitelist', $config['ip_whitelist']);
         $container->setParameter('scheb_two_factor.jwt', $config['jwt']);
@@ -60,7 +64,7 @@ class SchebTwoFactorExtension extends Extension
         if (true === $config['google']['enabled']) {
             $this->configureGoogleAuthenticationProvider($container);
         }
-        if ($config['totp']['enabled'] === true) {
+        if (true === $config['totp']['enabled']) {
             $this->configureTotpAuthenticationProvider($container);
         }
 
@@ -83,21 +87,21 @@ class SchebTwoFactorExtension extends Extension
             return;
         }
 
-        $container->removeAlias($container->getAlias('scheb_two_factor.persister'));
+        $container->removeAlias('scheb_two_factor.persister');
         $container->setAlias('scheb_two_factor.persister', $config['persister']);
     }
 
     private function configureTrustedDeviceManager(ContainerBuilder $container, array $config): void
     {
         $trustedDeviceManager = $config['trusted_device']['manager'] ?? self::DEFAULT_TRUSTED_DEVICE_MANAGER;
-        $container->removeAlias($container->getAlias('scheb_two_factor.trusted_device_manager'));
+        $container->removeAlias('scheb_two_factor.trusted_device_manager');
         $container->setAlias('scheb_two_factor.trusted_device_manager', $trustedDeviceManager);
     }
 
     private function configureBackupCodeManager(ContainerBuilder $container, array $config): void
     {
         $backupCodeManager = $config['backup_codes']['manager'] ?? self::DEFAULT_BACKUP_CODE_MANAGER;
-        $container->removeAlias($container->getAlias('scheb_two_factor.backup_code_manager'));
+        $container->removeAlias('scheb_two_factor.backup_code_manager');
         $container->setAlias('scheb_two_factor.backup_code_manager', $backupCodeManager);
     }
 
@@ -108,7 +112,7 @@ class SchebTwoFactorExtension extends Extension
             return;
         }
 
-        $container->removeAlias($container->getAlias('scheb_two_factor.ip_whitelist_provider'));
+        $container->removeAlias('scheb_two_factor.ip_whitelist_provider');
         $container->setAlias('scheb_two_factor.ip_whitelist_provider', $config['ip_whitelist_provider']);
     }
 
@@ -119,7 +123,7 @@ class SchebTwoFactorExtension extends Extension
             return;
         }
 
-        $container->removeAlias($container->getAlias('scheb_two_factor.token_factory'));
+        $container->removeAlias('scheb_two_factor.token_factory');
         $container->setAlias('scheb_two_factor.token_factory', $config['two_factor_token_factory']);
     }
 
@@ -137,7 +141,7 @@ class SchebTwoFactorExtension extends Extension
         $codeGeneratorService = $config['email']['code_generator'];
         if ($codeGeneratorService) {
             $container->removeAlias('scheb_two_factor.security.email.code_generator');
-            $container->setAlias('scheb_two_factor.security.email.code_generator', $codeGeneratorService);
+            $container->setAlias('scheb_two_factor.security.email.code_generator', $codeGeneratorService)->setPublic(true);
         }
     }
 

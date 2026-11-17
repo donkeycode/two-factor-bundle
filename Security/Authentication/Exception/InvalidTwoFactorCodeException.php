@@ -13,6 +13,9 @@ class InvalidTwoFactorCodeException extends AuthenticationException
      */
     private $messageKey = 'Invalid two-factor authentication code.';
 
+    /**
+     * @return string
+     */
     public function getMessageKey()
     {
         return $this->messageKey;
@@ -23,17 +26,43 @@ class InvalidTwoFactorCodeException extends AuthenticationException
         $this->messageKey = $messageKey;
     }
 
+    /**
+     * @return string
+     */
     public function serialize()
     {
-        return serialize(array(
-            $this->messageKey,
-            parent::serialize(),
-        ));
+        return serialize($this->__serialize());
     }
 
-    public function unserialize($str)
+    // Symfony 4.3 / PHP 7.4
+    public function __serialize(): array
     {
-        list($this->messageKey, $parentData) = unserialize($str);
-        parent::unserialize($parentData);
+        $parentHasNewInterface = method_exists(get_parent_class($this), '__serialize');
+        /** @psalm-suppress UndefinedMethod */
+        $parentData = $parentHasNewInterface ? parent::__serialize() : parent::serialize();
+
+        return [$this->messageKey, $parentData];
+    }
+
+    /**
+     * @param string|array $serialized
+     *
+     * @return void
+     */
+    public function unserialize($serialized)
+    {
+        $this->__unserialize(\is_array($serialized) ? $serialized : unserialize($serialized));
+    }
+
+    // Symfony 4.3 / PHP 7.4
+    public function __unserialize(array $data): void
+    {
+        [$this->messageKey, $parentData] = $data;
+        if (\is_array($parentData)) {
+            parent::__unserialize($parentData);
+        } else {
+            /** @psalm-suppress UndefinedMethod */
+            parent::unserialize($parentData);
+        }
     }
 }

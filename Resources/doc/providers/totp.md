@@ -3,9 +3,10 @@ TOTP Authentication
 
 ## How it works
 
-This authenticator is similar and compatible with [Google Authenticator](google.md). The configuration process is
-identical: a secret code and parameters are associated to the user. Users can add that code to the application on their
-mobile. The app will generate a numeric code from it that changes after a period of time.
+The [TOTP authenticator](https://en.wikipedia.org/wiki/Time-based_One-time_Password_algorithm) is similar and compatible
+with [Google Authenticator](google.md). The configuration process is identical: a secret code and parameters are
+associated to the user. Users can add that code to the application on their mobile. The app will generate a numeric code
+from it that changes after a period of time.
 
 The main difference is that several parameters can be customized:
 
@@ -33,10 +34,13 @@ We warned, custom configurations will not be compatible with the defaults of Goo
 have to use another application (e.g. FreeOTP on Android).
 
 ```php
+<?php
+
 namespace Acme\DemoBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 use Scheb\TwoFactorBundle\Model\Totp\TotpConfiguration;
+use Scheb\TwoFactorBundle\Model\Totp\TotpConfigurationInterface;
 use Scheb\TwoFactorBundle\Model\Totp\TwoFactorInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -47,9 +51,9 @@ class User implements UserInterface, TwoFactorInterface
      */
     private $totpSecret;
 
-    // [...]    
+    // [...]
 
-    public function isTotpAuthenticatorEnabled(): bool
+    public function isTotpAuthenticationEnabled(): bool
     {
         return $this->totpSecret ? true : false;
     }
@@ -118,6 +122,8 @@ $secret = $container->get("scheb_two_factor.security.totp_authenticator")->gener
 With Symfony 4, you can use auto-wiring dependency injection to get the services:
 
 ```php
+<?php
+
 use Scheb\TwoFactorBundle\Security\TwoFactor\Provider\Totp\TotpAuthenticatorInterface;
 
 public function generateSecret(TotpAuthenticatorInterface $totpAuthenticatorService)

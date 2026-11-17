@@ -42,6 +42,11 @@ class DefaultAuthenticationSuccessHandler implements AuthenticationSuccessHandle
     protected $jwt;
 
     /**
+     * @var JWTTokenManagerInterface|null
+     */
+    protected $JWTManager;
+
+    /**
      * @var TokenStorageInterface
      */
     protected $tokenStorage;
@@ -51,8 +56,8 @@ class DefaultAuthenticationSuccessHandler implements AuthenticationSuccessHandle
         string $firewallName,
         array $options = [],
         $jwt = false,
-        JWTTokenManagerInterface $JWTManager,
-        TokenStorageInterface $tokenStorage
+        ?JWTTokenManagerInterface $JWTManager = null,
+        ?TokenStorageInterface $tokenStorage = null
     ) {
         $this->httpUtils = $httpUtils;
         $this->firewallName = $firewallName;

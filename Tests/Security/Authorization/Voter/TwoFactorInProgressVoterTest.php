@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Scheb\TwoFactorBundle\Tests\Security\Authorization\Voter;
 
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Scheb\TwoFactorBundle\Security\Authentication\Token\TwoFactorTokenInterface;
 use Scheb\TwoFactorBundle\Security\Authorization\Voter\TwoFactorInProgressVoter;
 use Scheb\TwoFactorBundle\Tests\TestCase;
@@ -20,7 +21,12 @@ class TwoFactorInProgressVoterTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->voter = new TwoFactorInProgressVoter();
+        $jwtManager = $this->createMock(JWTTokenManagerInterface::class);
+        $jwtManager
+            ->expects($this->any())
+            ->method('decode')
+            ->willReturn(['roles' => []]);
+        $this->voter = new TwoFactorInProgressVoter($jwtManager);
     }
 
     /**

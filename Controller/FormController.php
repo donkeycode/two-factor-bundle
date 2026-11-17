@@ -15,7 +15,6 @@ use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
-use Symfony\Component\Security\Core\Role\Role;
 use Symfony\Component\Security\Core\Security;
 use Symfony\Component\Security\Http\Logout\LogoutUrlGenerator;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -61,6 +60,8 @@ class FormController
 
     private $jwt;
 
+    private $options;
+
     private $JWTManager;
 
     /**
@@ -97,6 +98,10 @@ class FormController
 
         $this->setPreferredProvider($request, $token);
         $providerName = $token->getCurrentTwoFactorProvider();
+        if (null === $providerName) {
+            throw new AccessDeniedException('User is not in a two-factor authentication process.');
+        }
+
         $renderer = $this->providerRegistry->getProvider($providerName)->getFormRenderer();
         $templateVars = $this->getTemplateVars($request, $token);
 
@@ -129,8 +134,10 @@ class FormController
     {
         $config = $this->twoFactorFirewallContext->getFirewallConfig($token->getProviderKey());
         $pendingTwoFactorProviders = $token->getTwoFactorProviders();
-        $displayTrustedOption = $this->trustedFeatureEnabled && (!$config->isMultiFactor() || 1 === count($pendingTwoFactorProviders));
+        $displayTrustedOption = $this->trustedFeatureEnabled && (!$config->isMultiFactor() || 1 === \count($pendingTwoFactorProviders));
         $authenticationException = $this->getLastAuthenticationException($request->getSession());
+        $checkPath = $config->getCheckPath();
+        $isRoute = false === strpos($checkPath, '/');
 
         return [
             'twoFactorProvider' => $token->getCurrentTwoFactorProvider(),
@@ -143,6 +150,8 @@ class FormController
             'isCsrfProtectionEnabled' => $config->isCsrfProtectionEnabled(),
             'csrfParameterName' => $config->getCsrfParameterName(),
             'csrfTokenId' => $config->getCsrfTokenId(),
+            'checkPathRoute' => $isRoute ? $checkPath : null,
+            'checkPathUrl' => $isRoute ? null : $checkPath,
             'logoutPath' => $this->logoutUrlGenerator->getLogoutPath(),
         ];
     }

@@ -62,6 +62,12 @@ class TwoFactorJwtToken implements TwoFactorTokenInterface
         return [];
     }
 
+    // Symfony 4.3
+    public function getRoleNames(): array
+    {
+        return $this->getRoles();
+    }
+
     public function getCredentials()
     {
         return $this->credentials;
@@ -90,7 +96,9 @@ class TwoFactorJwtToken implements TwoFactorTokenInterface
 
     public function getCurrentTwoFactorProvider(): ?string
     {
-        return reset($this->twoFactorProviders) ?? null;
+        $first = reset($this->twoFactorProviders);
+
+        return false !== $first ? $first : null;
     }
 
     public function setTwoFactorProviderComplete(string $providerName): void
@@ -102,14 +110,14 @@ class TwoFactorJwtToken implements TwoFactorTokenInterface
     {
         $key = array_search($providerName, $this->twoFactorProviders);
         if (false === $key) {
-            throw new UnknownTwoFactorProviderException('Two-factor provider "'.$providerName.'" is not active.');
+            throw new UnknownTwoFactorProviderException(sprintf('Two-factor provider "%s" is not active.', $providerName));
         }
         unset($this->twoFactorProviders[$key]);
     }
 
     public function allTwoFactorProvidersAuthenticated(): bool
     {
-        return 0 === count($this->twoFactorProviders);
+        return 0 === \count($this->twoFactorProviders);
     }
 
     public function getProviderKey(): string
@@ -127,14 +135,26 @@ class TwoFactorJwtToken implements TwoFactorTokenInterface
         throw new \RuntimeException('Cannot change authenticated once initialized.');
     }
 
+    // Symfony 4.3 / PHP 7.4
+    public function __serialize(): array
+    {
+        return [$this->authenticatedToken, $this->credentials, $this->providerKey, $this->attributes, $this->twoFactorProviders];
+    }
+
     public function serialize()
     {
-        return serialize([$this->authenticatedToken, $this->credentials, $this->providerKey, $this->attributes, $this->twoFactorProviders]);
+        return serialize($this->__serialize());
+    }
+
+    // Symfony 4.3 / PHP 7.4
+    public function __unserialize(array $data): void
+    {
+        [$this->authenticatedToken, $this->credentials, $this->providerKey, $this->attributes, $this->twoFactorProviders] = $data;
     }
 
     public function unserialize($serialized)
     {
-        list($this->authenticatedToken, $this->credentials, $this->providerKey, $this->attributes, $this->twoFactorProviders) = unserialize($serialized);
+        $this->__unserialize(\is_array($serialized) ? $serialized : unserialize($serialized));
     }
 
     public function getAttributes()
@@ -149,12 +169,12 @@ class TwoFactorJwtToken implements TwoFactorTokenInterface
 
     public function hasAttribute($name)
     {
-        return array_key_exists($name, $this->attributes);
+        return \array_key_exists($name, $this->attributes);
     }
 
     public function getAttribute($name)
     {
-        if (!array_key_exists($name, $this->attributes)) {
+        if (!\array_key_exists($name, $this->attributes)) {
             throw new \InvalidArgumentException(sprintf('This token has no "%s" attribute.', $name));
         }
 

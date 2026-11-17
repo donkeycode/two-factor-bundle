@@ -62,6 +62,7 @@ class SchebTwoFactorExtensionTest extends TestCase
         $this->assertParameter(false, 'scheb_two_factor.trusted_device.cookie_secure');
         $this->assertParameter('lax', 'scheb_two_factor.trusted_device.cookie_same_site');
         $this->assertParameter(null, 'scheb_two_factor.trusted_device.cookie_domain');
+        $this->assertParameter('/', 'scheb_two_factor.trusted_device.cookie_path');
         $this->assertParameter(['Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken'], 'scheb_two_factor.security_tokens');
         $this->assertParameter([], 'scheb_two_factor.ip_whitelist');
     }
@@ -96,6 +97,7 @@ class SchebTwoFactorExtensionTest extends TestCase
         $this->assertParameter(true, 'scheb_two_factor.trusted_device.cookie_secure');
         $this->assertParameter(null, 'scheb_two_factor.trusted_device.cookie_same_site');
         $this->assertParameter('cookie.example.org', 'scheb_two_factor.trusted_device.cookie_domain');
+        $this->assertParameter('/cookie-path', 'scheb_two_factor.trusted_device.cookie_path');
         $this->assertParameter(['Symfony\Component\Security\Core\Authentication\Token\SomeToken'], 'scheb_two_factor.security_tokens');
         $this->assertParameter(['127.0.0.1'], 'scheb_two_factor.ip_whitelist');
     }
@@ -132,8 +134,8 @@ class SchebTwoFactorExtensionTest extends TestCase
 
         $this->assertHasDefinition('scheb_two_factor.security.google_totp_factory');
         $this->assertHasDefinition('scheb_two_factor.security.google_authenticator');
+        $this->assertHasDefinition('scheb_two_factor.security.google.form_renderer');
         $this->assertHasDefinition('scheb_two_factor.security.google.provider');
-        $this->assertAlias('scheb_two_factor.security.google.form_renderer', 'scheb_two_factor.security.form_renderer');
     }
 
     /**
@@ -146,8 +148,8 @@ class SchebTwoFactorExtensionTest extends TestCase
 
         $this->assertHasDefinition('scheb_two_factor.security.totp_factory');
         $this->assertHasDefinition('scheb_two_factor.security.totp_authenticator');
+        $this->assertHasDefinition('scheb_two_factor.security.totp.form_renderer');
         $this->assertHasDefinition('scheb_two_factor.security.totp.provider');
-        $this->assertAlias('scheb_two_factor.security.totp.form_renderer', 'scheb_two_factor.security.form_renderer');
     }
 
     /**
@@ -161,7 +163,6 @@ class SchebTwoFactorExtensionTest extends TestCase
         $this->assertHasDefinition('scheb_two_factor.security.email.default_auth_code_mailer');
         $this->assertHasDefinition('scheb_two_factor.security.email.default_code_generator');
         $this->assertHasDefinition('scheb_two_factor.security.email.provider');
-        $this->assertAlias('scheb_two_factor.security.email.form_renderer', 'scheb_two_factor.security.form_renderer');
     }
 
     /**
@@ -376,6 +377,7 @@ trusted_device:
     cookie_secure: true
     cookie_same_site: null
     cookie_domain: cookie.example.org
+    cookie_path: /cookie-path
 backup_codes:
     enabled: true
     manager: acme_test.backup_code_manager

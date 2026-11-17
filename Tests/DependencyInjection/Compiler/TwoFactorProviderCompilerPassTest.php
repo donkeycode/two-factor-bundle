@@ -55,7 +55,7 @@ class TwoFactorProviderCompilerPassTest extends TestCase
     {
         $providersArgument = $this->container->getDefinition('scheb_two_factor.provider_registry')->getArgument(0);
         $this->assertInstanceOf(IteratorArgument::class, $providersArgument);
-        $this->assertCount(count($providers), $providersArgument->getValues());
+        $this->assertCount(\count($providers), $providersArgument->getValues());
     }
 
     /**
@@ -76,9 +76,11 @@ class TwoFactorProviderCompilerPassTest extends TestCase
      */
     public function process_taggedServices_replaceArgumentWithServiceList(): void
     {
-        $taggedServices = ['serviceId' => [
-            0 => ['alias' => 'providerAlias'],
-        ]];
+        $taggedServices = [
+            'serviceId' => [
+                0 => ['alias' => 'providerAlias'],
+            ],
+        ];
         $this->stubTaggedContainerService($taggedServices);
 
         $this->compilerPass->process($this->container);
@@ -92,9 +94,11 @@ class TwoFactorProviderCompilerPassTest extends TestCase
      */
     public function process_missingAlias_throwException(): void
     {
-        $taggedServices = ['serviceId' => [
-            0 => [],
-        ]];
+        $taggedServices = [
+            'serviceId' => [
+                0 => [],
+            ],
+        ];
         $this->stubTaggedContainerService($taggedServices);
 
         $this->expectException(InvalidArgumentException::class);

@@ -1,6 +1,8 @@
 Trusted Devices
 ===============
 
+> **Note:** this feature requires `lcobucci/jwt` 3.x. It is not compatible with `lcobucci/jwt` 4.x.
+
 You can give users the possibility to flag devices as "trusted", which means the two-factor process will be skipped after
 passing it once on that device.
 
@@ -17,6 +19,7 @@ scheb_two_factor:
         cookie_secure: false           # Set the 'Secure' (HTTPS Only) flag on the trusted device cookie
         cookie_same_site: "lax"        # The same-site option of the cookie, can be "lax" or "strict"
         cookie_domain: ".example.com"  # Domain to use when setting the cookie, fallback to the request domain if not set
+        cookie_path: "/"               # Path to use when setting the cookie
 ```
 
 Trusted device cookies are versioned, which gives you (or the user) to possibility to invalidate all trusted device
@@ -24,6 +27,8 @@ cookies at once, e.g. in case of a security breach. To make use of this feature,
 `Scheb\TwoFactorBundle\Model\TrustedDeviceInterface` in the user entity.
 
 ```php
+<?php
+
 namespace Acme\DemoBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
@@ -38,7 +43,7 @@ class User implements TrustedDeviceInterface
 
     // [...]
 
-    public function getTrustedTokenVersion(): int;
+    public function getTrustedTokenVersion(): int
     {
         return $this->trustedVersion;
     }
@@ -46,6 +51,23 @@ class User implements TrustedDeviceInterface
 ```
 
 If not implemented, the bundle is defaulting to version `0`.
+
+## Flagging a device as "trusted"
+
+To flag a device as "trusted", in the last step of the 2fa process, you have to pass a parameter `_trusted` with a
+`true`-like value. The parameter name can be changed in the firewall configuration:
+
+```yaml
+security:
+    firewalls:
+        your_firewall_name:
+            # ...
+            two_factor:
+                trusted_parameter_name: _trusted  # Name of the parameter for the trusted device option
+```
+
+Please have a look at the [default authentication form template](https://github.com/scheb/two-factor-bundle/blob/4.x/Resources/views/Authentication/form.html.twig#L38-L40)
+how it's implemented.
 
 ## Custom trusted device manager
 

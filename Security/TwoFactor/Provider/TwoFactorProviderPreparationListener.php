@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Scheb\TwoFactorBundle\Security\TwoFactor\Provider;
 
-use Scheb\TwoFactorBundle\Security\Authentication\Token\TwoFactorToken;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+use Scheb\TwoFactorBundle\Security\Authentication\Token\TwoFactorTokenInterface;
 use Scheb\TwoFactorBundle\Security\TwoFactor\Event\TwoFactorAuthenticationEvent;
+use Symfony\Component\HttpKernel\Event\FinishRequestEvent;
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Event\AuthenticationEvent;
 
 class TwoFactorProviderPreparationListener
 {
@@ -14,22 +19,133 @@ class TwoFactorProviderPreparationListener
      */
     private $providerRegistry;
 
+    /**
+     * @var TwoFactorProviderPreparationRecorder
+     */
+    private $preparationRecorder;
+
+    /**
+     * @var TwoFactorTokenInterface|null
+     */
+    private $twoFactorToken;
+
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
+     * @var string
+     */
+    private $firewallName;
+
+    /**
+     * @var bool
+     */
+    private $prepareOnLogin;
+
+    /**
+     * @var bool
+     */
+    private $prepareOnAccessDenied;
+
+    /**
+     * @var bool
+     */
     private $jwt;
 
-    public function __construct(TwoFactorProviderRegistry $providerRegistry, $jwt = false)
-    {
+    public function __construct(
+        TwoFactorProviderRegistry $providerRegistry,
+        TwoFactorProviderPreparationRecorder $preparationRecorder,
+        ?LoggerInterface $logger,
+        string $firewallName,
+        bool $prepareOnLogin,
+        bool $prepareOnAccessDenied,
+        bool $jwt = false
+    ) {
         $this->providerRegistry = $providerRegistry;
+        $this->preparationRecorder = $preparationRecorder;
+        $this->logger = $logger ?? new NullLogger();
+        $this->firewallName = $firewallName;
+        $this->prepareOnLogin = $prepareOnLogin;
+        $this->prepareOnAccessDenied = $prepareOnAccessDenied;
         $this->jwt = $jwt;
     }
 
-    public function onTwoFactorAuthenticationRequest(TwoFactorAuthenticationEvent $event)
+    public function onLogin(AuthenticationEvent $event): void
     {
-        if (!$this->jwt) {
-            /** @var TwoFactorToken $token */
-            $token = $event->getToken();
-            $user = $token->getUser();
-            $providerName = $token->getCurrentTwoFactorProvider();
-            $this->providerRegistry->getProvider($providerName)->prepareAuthentication($user);
+        $token = $event->getAuthenticationToken();
+
+        if ($token instanceof TwoFactorTokenInterface) {
+            $firewallName = $token->getProviderKey();
+            $this->preparationRecorder->startRecording($firewallName);
         }
+
+        if ($this->prepareOnLogin && $this->supports($token)) {
+            /** @var TwoFactorTokenInterface $token */
+            // After login, when the token is a TwoFactorTokenInterface, execute preparation
+            $this->twoFactorToken = $token;
+        }
+    }
+
+    public function onAccessDenied(TwoFactorAuthenticationEvent $event): void
+    {
+        $token = $event->getToken();
+        if ($this->prepareOnAccessDenied && $this->supports($token)) {
+            /** @var TwoFactorTokenInterface $token */
+            // Whenever two-factor authentication is required, execute preparation
+            $this->twoFactorToken = $token;
+        }
+    }
+
+    public function onTwoFactorForm(TwoFactorAuthenticationEvent $event): void
+    {
+        $token = $event->getToken();
+        if ($this->supports($token)) {
+            /** @var TwoFactorTokenInterface $token */
+            // Whenever two-factor authentication form is shown, execute preparation
+            $this->twoFactorToken = $token;
+        }
+    }
+
+    public function onKernelFinishRequest(FinishRequestEvent $event): void
+    {
+        if (!$event->isMasterRequest()) {
+            return;
+        }
+        if (!($this->twoFactorToken instanceof TwoFactorTokenInterface)) {
+            return;
+        }
+
+        $providerName = $this->twoFactorToken->getCurrentTwoFactorProvider();
+        if (null === $providerName) {
+            return;
+        }
+
+        $firewallName = $this->twoFactorToken->getProviderKey();
+
+        try {
+            if ($this->preparationRecorder->isProviderPrepared($firewallName, $providerName)) {
+                $this->logger->info(sprintf('Two-factor provider "%s" was already prepared.', $providerName));
+
+                return;
+            }
+            $user = $this->twoFactorToken->getUser();
+            $this->providerRegistry->getProvider($providerName)->prepareAuthentication($user);
+            $this->preparationRecorder->recordProviderIsPrepared($firewallName, $providerName);
+            $this->logger->info(sprintf('Two-factor provider "%s" prepared.', $providerName));
+        } finally {
+            $this->preparationRecorder->saveSession();
+        }
+    }
+
+    private function supports(TokenInterface $token): bool
+    {
+        // In JWT mode the provider is prepared on security.interactive_login, see TwoFactorProviderPreparationOnInteractiveLoginListener
+        if ($this->jwt) {
+            return false;
+        }
+
+        return $token instanceof TwoFactorTokenInterface && $token->getProviderKey() === $this->firewallName;
     }
 }

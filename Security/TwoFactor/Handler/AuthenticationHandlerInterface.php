@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Scheb\TwoFactorBundle\Security\TwoFactor\Handler;
 
 use Scheb\TwoFactorBundle\Security\TwoFactor\AuthenticationContextInterface;
@@ -9,10 +11,6 @@ interface AuthenticationHandlerInterface
 {
     /**
      * Begin the two-factor authentication process.
-     *
-     * @param AuthenticationContextInterface $context
-     *
-     * @return TokenInterface
      */
     public function beginTwoFactorAuthentication(AuthenticationContextInterface $context): TokenInterface;
 }

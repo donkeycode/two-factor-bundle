@@ -24,7 +24,7 @@ class TwoFactorProviderPreparationOnInteractiveLoginListener
 
     private $container;
 
-    public function __construct(TwoFactorProviderRegistry $providerRegistry, $jwt = false, \Psr\Container\ContainerInterface $container)
+    public function __construct(TwoFactorProviderRegistry $providerRegistry, \Psr\Container\ContainerInterface $container, $jwt = false)
     {
         $this->providerRegistry = $providerRegistry;
         $this->jwt = $jwt;

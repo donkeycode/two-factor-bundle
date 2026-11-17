@@ -6,6 +6,7 @@ namespace Scheb\TwoFactorBundle\Security\TwoFactor\Trusted;
 
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 
 class TrustedCookieResponseListener
 {
@@ -37,6 +38,11 @@ class TrustedCookieResponseListener
     /**
      * @var string|null
      */
+    private $cookiePath;
+
+    /**
+     * @var string|null
+     */
     private $cookieDomain;
 
     public function __construct(
@@ -45,6 +51,7 @@ class TrustedCookieResponseListener
         string $cookieName,
         bool $cookieSecure,
         ?string $cookieSameSite,
+        ?string $cookiePath,
         ?string $cookieDomain
     ) {
         $this->trustedTokenStorage = $trustedTokenStorage;
@@ -52,15 +59,22 @@ class TrustedCookieResponseListener
         $this->cookieName = $cookieName;
         $this->cookieSecure = $cookieSecure;
         $this->cookieSameSite = $cookieSameSite;
+        $this->cookiePath = $cookiePath;
         $this->cookieDomain = $cookieDomain;
     }
 
-    public function onKernelResponse(FilterResponseEvent $event): void
+    /**
+     * @psalm-suppress UndefinedDocblockClass
+     * @psalm-suppress UndefinedClass
+     *
+     * @param FilterResponseEvent|ResponseEvent $event
+     */
+    public function onKernelResponse($event): void
     {
         if ($this->trustedTokenStorage->hasUpdatedCookie()) {
             $domain = null;
 
-            if ($this->cookieDomain !== null) {
+            if (null !== $this->cookieDomain) {
                 $domain = $this->cookieDomain;
             } else {
                 $requestHost = $event->getRequest()->getHost();
@@ -74,7 +88,7 @@ class TrustedCookieResponseListener
                 $this->cookieName,
                 $this->trustedTokenStorage->getCookieValue(),
                 $this->getValidUntil(),
-                '/',
+                $this->cookiePath,
                 $domain,
                 $this->cookieSecure,
                 true,

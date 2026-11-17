@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
 
 class TrustedCookieResponseListenerTest extends TestCase
 {
@@ -33,15 +34,27 @@ class TrustedCookieResponseListenerTest extends TestCase
     protected function setUp(): void
     {
         $this->trustedTokenStorage = $this->createMock(TrustedDeviceTokenStorage::class);
-        $this->cookieResponseListener = new TestableTrustedCookieResponseListener($this->trustedTokenStorage,
-            3600, 'cookieName', true, Cookie::SAMESITE_LAX, null);
-        $this->cookieResponseListener->now = new \DateTime('2018-01-01 00:00:00');
+        $this->cookieResponseListener = $this->createTrustedCookieResponseListener(null);
         $this->response = new Response();
     }
 
+    private function createTrustedCookieResponseListener(?string $domain = null): TrustedCookieResponseListener
+    {
+        $cookieResponseListener = new TestableTrustedCookieResponseListener(
+            $this->trustedTokenStorage,
+            3600,
+            'cookieName',
+            true,
+            Cookie::SAMESITE_LAX,
+            '/cookie-path',
+            $domain
+        );
+        $cookieResponseListener->now = new \DateTime('2018-01-01 00:00:00');
+
+        return $cookieResponseListener;
+    }
+
     /**
-     * @param string $host
-     *
      * @return MockObject|Request
      */
     private function createRequestWithHost(string $host = 'example.org'): MockObject
@@ -56,13 +69,17 @@ class TrustedCookieResponseListenerTest extends TestCase
     }
 
     /**
-     * @param MockObject $request
-     *
-     * @return MockObject|FilterResponseEvent
+     * @return MockObject|FilterResponseEvent|RequestEvent
      */
-    private function createEventWithRequest(MockObject $request): FilterResponseEvent
+    private function createEventWithRequest(MockObject $request): MockObject
     {
-        $event = $this->createMock(FilterResponseEvent::class);
+        // Symfony < 4.3
+        if (!class_exists(RequestEvent::class)) {
+            $event = $this->createMock(FilterResponseEvent::class);
+        } else {
+            $event = $this->createMock(RequestEvent::class);
+        }
+
         $event
             ->expects($this->any())
             ->method('getRequest')
@@ -76,7 +93,7 @@ class TrustedCookieResponseListenerTest extends TestCase
     }
 
     /**
-     * @return MockObject|FilterResponseEvent
+     * @return MockObject|FilterResponseEvent|RequestEvent
      */
     private function createEvent(): MockObject
     {
@@ -124,7 +141,7 @@ class TrustedCookieResponseListenerTest extends TestCase
             'cookieName',
             'cookieValue',
             new \DateTime('2018-01-01 01:00:00'),
-            '/',
+            '/cookie-path',
             '.example.org',
             true,
             true,
@@ -137,13 +154,9 @@ class TrustedCookieResponseListenerTest extends TestCase
     /**
      * @test
      */
-    public function onKernelResponse_setCookieDomain(): void
+    public function onKernelResponse_hasDomainConfigured_setCookieDomain(): void
     {
-        $domain = '.test.me';
-
-        $this->cookieResponseListener = new TestableTrustedCookieResponseListener($this->trustedTokenStorage,
-        3600, 'cookieName', true, Cookie::SAMESITE_LAX, $domain);
-        $this->cookieResponseListener->now = new \DateTime('2018-01-01 00:00:00');
+        $this->cookieResponseListener = $this->createTrustedCookieResponseListener('.different-domain.com');
 
         $this->trustedTokenStorage
             ->expects($this->once())
@@ -159,8 +172,8 @@ class TrustedCookieResponseListenerTest extends TestCase
             'cookieName',
             null,
             new \DateTime('2018-01-01 01:00:00'),
-            '/',
-            $domain,
+            '/cookie-path',
+            '.different-domain.com',
             true,
             true,
             false,

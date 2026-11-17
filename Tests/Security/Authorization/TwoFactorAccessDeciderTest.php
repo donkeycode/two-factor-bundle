@@ -11,13 +11,18 @@ use Scheb\TwoFactorBundle\Tests\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
+use Symfony\Component\Security\Core\Authorization\Voter\AuthenticatedVoter;
 use Symfony\Component\Security\Http\AccessMapInterface;
+use Symfony\Component\Security\Http\Firewall\AccessListener;
 use Symfony\Component\Security\Http\HttpUtils;
 use Symfony\Component\Security\Http\Logout\LogoutUrlGenerator;
 
 class TwoFactorAccessDeciderTest extends TestCase
 {
+    private const BASE_URL = '/app_dev.php';
     private const LOGOUT_PATH = '/logout';
+    private const LOGOUT_PATH_WITH_BASE_URL = self::BASE_URL.self::LOGOUT_PATH;
+    private const ACCESS_MAP_ATTRIBUTES = [TwoFactorInProgressVoter::IS_AUTHENTICATED_2FA_IN_PROGRESS];
 
     /**
      * @var MockObject|Request
@@ -33,6 +38,11 @@ class TwoFactorAccessDeciderTest extends TestCase
      * @var MockObject|AccessMapInterface
      */
     private $accessMap;
+
+    /**
+     * @var string[]
+     */
+    private $attributes;
 
     /**
      * @var MockObject|AccessDecisionManagerInterface
@@ -62,21 +72,33 @@ class TwoFactorAccessDeciderTest extends TestCase
         $this->accessDecisionManager = $this->createMock(AccessDecisionManagerInterface::class);
         $this->httpUtils = $this->createMock(HttpUtils::class);
         $this->logoutUrlGenerator = $this->createMock(LogoutUrlGenerator::class);
+        $this->accessDecider = new TwoFactorAccessDecider($this->accessMap, $this->accessDecisionManager, $this->httpUtils, $this->logoutUrlGenerator);
+    }
 
-        // Stub an access rule
+    private function stubAccessMapReturnsAttributes(array $attributes): void
+    {
+        $this->attributes = $attributes;
         $this->accessMap
             ->expects($this->any())
             ->method('getPatterns')
             ->with($this->request)
-            ->willReturn([[TwoFactorInProgressVoter::IS_AUTHENTICATED_2FA_IN_PROGRESS], 'https']);
+            ->willReturn([$attributes, 'https']);
+    }
 
-        // Stub the logout path
+    private function whenGeneratedLogoutPath(string $generatedLogoutPath): void
+    {
         $this->logoutUrlGenerator
             ->expects($this->any())
             ->method('getLogoutPath')
-            ->willReturn(self::LOGOUT_PATH);
+            ->willReturn($generatedLogoutPath);
+    }
 
-        $this->accessDecider = new TwoFactorAccessDecider($this->accessMap, $this->accessDecisionManager, $this->httpUtils, $this->logoutUrlGenerator);
+    private function whenRequestBaseUrl(string $baseUrl): void
+    {
+        $this->request
+            ->expects($this->any())
+            ->method('getBaseUrl')
+            ->willReturn($baseUrl);
     }
 
     private function whenPathAccess(bool $accessGranted): void
@@ -84,7 +106,7 @@ class TwoFactorAccessDeciderTest extends TestCase
         $this->accessDecisionManager
             ->expects($this->any())
             ->method('decide')
-            ->with($this->isInstanceOf(TokenInterface::class), [TwoFactorInProgressVoter::IS_AUTHENTICATED_2FA_IN_PROGRESS], $this->request)
+            ->with($this->isInstanceOf(TokenInterface::class), $this->attributes, $this->request)
             ->willReturn($accessGranted);
     }
 
@@ -102,6 +124,7 @@ class TwoFactorAccessDeciderTest extends TestCase
      */
     public function isAccessible_pathAccessGranted_returnTrue(): void
     {
+        $this->stubAccessMapReturnsAttributes(self::ACCESS_MAP_ATTRIBUTES);
         $this->whenPathAccess(true);
         $this->whenIsLogoutPath(false);
 
@@ -112,8 +135,60 @@ class TwoFactorAccessDeciderTest extends TestCase
     /**
      * @test
      */
-    public function isAccessible_isLogoutPath_returnTrue(): void
+    public function isAccessible_isPublic_returnTrue(): void
     {
+        $this->requireAtLeastSymfony5_1();
+        $publicAccess = null;
+
+        // Compatibility with Symfony 5.1
+        if (\defined(AccessListener::class.'::PUBLIC_ACCESS')) {
+            $publicAccess = AccessListener::PUBLIC_ACCESS;
+        }
+
+        // Compatibility for Symfony 5.2+
+        if (\defined(AuthenticatedVoter::class.'::PUBLIC_ACCESS')) {
+            $publicAccess = AuthenticatedVoter::PUBLIC_ACCESS;
+        }
+
+        if (null === $publicAccess) {
+            $this->fail('Could not find PUBLIC_ACCESS constant.');
+
+            return;
+        }
+
+        $this->stubAccessMapReturnsAttributes([$publicAccess]);
+        $this->whenRequestBaseUrl('');
+        $this->whenGeneratedLogoutPath(self::LOGOUT_PATH);
+        $this->whenPathAccess(false);
+        $this->whenIsLogoutPath(false);
+
+        $returnValue = $this->accessDecider->isAccessible($this->request, $this->token);
+        $this->assertTrue($returnValue);
+    }
+
+    /**
+     * @test
+     */
+    public function isAccessible_isLogoutPathNoBasePath_returnTrue(): void
+    {
+        $this->stubAccessMapReturnsAttributes(self::ACCESS_MAP_ATTRIBUTES);
+        $this->whenRequestBaseUrl('');
+        $this->whenGeneratedLogoutPath(self::LOGOUT_PATH);
+        $this->whenPathAccess(false);
+        $this->whenIsLogoutPath(true);
+
+        $returnValue = $this->accessDecider->isAccessible($this->request, $this->token);
+        $this->assertTrue($returnValue);
+    }
+
+    /**
+     * @test
+     */
+    public function isAccessible_isLogoutPathWithBasePath_returnTrue(): void
+    {
+        $this->stubAccessMapReturnsAttributes(self::ACCESS_MAP_ATTRIBUTES);
+        $this->whenRequestBaseUrl(self::BASE_URL);
+        $this->whenGeneratedLogoutPath(self::LOGOUT_PATH_WITH_BASE_URL);
         $this->whenPathAccess(false);
         $this->whenIsLogoutPath(true);
 
@@ -126,6 +201,9 @@ class TwoFactorAccessDeciderTest extends TestCase
      */
     public function isAccessible_isNotAccessible_returnFalse(): void
     {
+        $this->stubAccessMapReturnsAttributes(self::ACCESS_MAP_ATTRIBUTES);
+        $this->whenRequestBaseUrl('');
+        $this->whenGeneratedLogoutPath(self::LOGOUT_PATH);
         $this->whenPathAccess(false);
         $this->whenIsLogoutPath(false);
 

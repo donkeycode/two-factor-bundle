@@ -10,43 +10,62 @@ use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
 
 class TwoFactorFactory implements SecurityFactoryInterface
 {
     public const AUTHENTICATION_PROVIDER_KEY = 'two_factor';
 
     public const DEFAULT_CHECK_PATH = '/2fa_check';
+    public const DEFAULT_POST_ONLY = false;
     public const DEFAULT_AUTH_FORM_PATH = '/2fa';
     public const DEFAULT_ALWAYS_USE_DEFAULT_TARGET_PATH = false;
     public const DEFAULT_TARGET_PATH = '/';
     public const DEFAULT_AUTH_CODE_PARAMETER_NAME = '_auth_code';
     public const DEFAULT_TRUSTED_PARAMETER_NAME = '_trusted';
     public const DEFAULT_MULTI_FACTOR = false;
+    public const DEFAULT_PREPARE_ON_LOGIN = false;
+    public const DEFAULT_PREPARE_ON_ACCESS_DENIED = false;
     public const DEFAULT_CSRF_PARAMETER = '_csrf_token';
     public const DEFAULT_CSRF_TOKEN_ID = 'two_factor';
 
     public const PROVIDER_ID_PREFIX = 'security.authentication.provider.two_factor.';
     public const LISTENER_ID_PREFIX = 'security.authentication.listener.two_factor.';
+    public const LEGACY_LISTENER_ID_PREFIX = 'security.authentication.legacy_listener.two_factor.';
     public const SUCCESS_HANDLER_ID_PREFIX = 'security.authentication.success_handler.two_factor.';
     public const FAILURE_HANDLER_ID_PREFIX = 'security.authentication.failure_handler.two_factor.';
     public const AUTHENTICATION_REQUIRED_HANDLER_ID_PREFIX = 'security.authentication.authentication_required_handler.two_factor.';
     public const FIREWALL_CONFIG_ID_PREFIX = 'security.firewall_config.two_factor.';
     public const CSRF_TOKEN_VALIDATOR_ID_PREFIX = 'security.authentication.csrf_token_validator.two_factor.';
+    public const PROVIDER_PREPARATION_LISTENER_ID_PREFIX = 'security.authentication.provider_preparation_listener.two_factor.';
+    public const AUTHENTICATION_SUCCESS_EVENT_SUPPRESSOR_ID_PREFIX = 'security.authentication.authentication_success_event_suppressor.two_factor.';
 
     public const PROVIDER_DEFINITION_ID = 'scheb_two_factor.security.authentication.provider';
     public const LISTENER_DEFINITION_ID = 'scheb_two_factor.security.authentication.listener';
+    public const LEGACY_LISTENER_DEFINITION_ID = 'scheb_two_factor.security.authentication.legacy_listener';
     public const SUCCESS_HANDLER_DEFINITION_ID = 'scheb_two_factor.security.authentication.success_handler';
     public const FAILURE_HANDLER_DEFINITION_ID = 'scheb_two_factor.security.authentication.failure_handler';
     public const AUTHENTICATION_REQUIRED_HANDLER_DEFINITION_ID = 'scheb_two_factor.security.authentication.authentication_required_handler';
     public const FIREWALL_CONFIG_DEFINITION_ID = 'scheb_two_factor.security.firewall_config';
     public const CSRF_TOKEN_VALIDATOR_DEFINITION_ID = 'scheb_two_factor.security.authentication.csrf_token_validator';
+    public const PROVIDER_PREPARATION_LISTENER_DEFINITION_ID = 'scheb_two_factor.security.provider_preparation_listener';
+    public const AUTHENTICATION_SUCCESS_EVENT_SUPPRESSOR_ID = 'scheb_two_factor.security.authentication_success_event_suppressor';
 
+    /**
+     * @return void
+     */
     public function addConfiguration(NodeDefinition $node)
     {
         /** @var ArrayNodeDefinition $node */
         $builder = $node->children();
+
+        /**
+         * @psalm-suppress PossiblyNullReference
+         * @psalm-suppress PossiblyUndefinedMethod
+         */
         $builder
             ->scalarNode('check_path')->defaultValue(self::DEFAULT_CHECK_PATH)->end()
+            ->booleanNode('post_only')->defaultValue(self::DEFAULT_POST_ONLY)->end()
             ->scalarNode('auth_form_path')->defaultValue(self::DEFAULT_AUTH_FORM_PATH)->end()
             ->booleanNode('always_use_default_target_path')->defaultValue(self::DEFAULT_ALWAYS_USE_DEFAULT_TARGET_PATH)->end()
             ->scalarNode('default_target_path')->defaultValue(self::DEFAULT_TARGET_PATH)->end()
@@ -56,6 +75,8 @@ class TwoFactorFactory implements SecurityFactoryInterface
             ->scalarNode('auth_code_parameter_name')->defaultValue(self::DEFAULT_AUTH_CODE_PARAMETER_NAME)->end()
             ->scalarNode('trusted_parameter_name')->defaultValue(self::DEFAULT_TRUSTED_PARAMETER_NAME)->end()
             ->booleanNode('multi_factor')->defaultValue(self::DEFAULT_MULTI_FACTOR)->end()
+            ->booleanNode('prepare_on_login')->defaultValue(self::DEFAULT_PREPARE_ON_LOGIN)->end()
+            ->booleanNode('prepare_on_access_denied')->defaultValue(self::DEFAULT_PREPARE_ON_ACCESS_DENIED)->end()
             ->scalarNode('csrf_token_generator')->defaultNull()->end()
             ->scalarNode('csrf_parameter')->defaultValue(self::DEFAULT_CSRF_PARAMETER)->end()
             ->scalarNode('csrf_token_id')->defaultValue(self::DEFAULT_CSRF_TOKEN_ID)->end()
@@ -64,13 +85,23 @@ class TwoFactorFactory implements SecurityFactoryInterface
         ;
     }
 
-    public function create(ContainerBuilder $container, $firewallName, $config, $userProvider, $defaultEntryPoint)
+    /**
+     * @param string $id
+     * @param array $config
+     * @param string $userProviderId
+     * @param string|null $defaultEntryPointId
+     *
+     * @return array
+     */
+    public function create(ContainerBuilder $container, $id, $config, $userProviderId, $defaultEntryPointId)
     {
-        $providerId = $this->createAuthenticationProvider($container, $firewallName, $config);
-        $listenerId = $this->createAuthenticationListener($container, $firewallName, $config);
-        $this->createTwoFactorFirewallConfig($container, $firewallName, $config);
+        $providerId = $this->createAuthenticationProvider($container, $id, $config);
+        $listenerId = $this->createAuthenticationListener($container, $id, $config);
+        $this->createProviderPreparationListener($container, $id, $config);
+        $this->createAuthenticationSuccessEventSuppressor($container, $id);
+        $this->createTwoFactorFirewallConfig($container, $id, $config);
 
-        return [$providerId, $listenerId, $defaultEntryPoint];
+        return [$providerId, $listenerId, $defaultEntryPointId];
     }
 
     private function createAuthenticationProvider(ContainerBuilder $container, string $firewallName, array $config): string
@@ -100,6 +131,17 @@ class TwoFactorFactory implements SecurityFactoryInterface
             ->replaceArgument(6, new Reference($authRequiredHandlerId))
             ->replaceArgument(7, new Reference($csrfTokenValidatorId))
             ->replaceArgument(8, $config);
+
+        // Symfony < 4.3
+        if (!class_exists(RequestEvent::class)) {
+            $legacyListenerId = self::LEGACY_LISTENER_ID_PREFIX.$firewallName;
+            $container
+                ->setDefinition($legacyListenerId, new ChildDefinition(self::LEGACY_LISTENER_DEFINITION_ID))
+                ->replaceArgument(0, new Reference($legacyListenerId.'.inner'))
+                ->setDecoratedService($listenerId);
+
+            return $legacyListenerId;
+        }
 
         return $listenerId;
     }
@@ -173,6 +215,29 @@ class TwoFactorFactory implements SecurityFactoryInterface
 
         // The SecurityFactory doesn't have access to the service definitions of the bundle. Therefore we tag the
         // definition so we can find it in a compiler pass and add to the the TwoFactorFirewallContext service.
+    }
+
+    private function createProviderPreparationListener(ContainerBuilder $container, string $firewallName, array $config): void
+    {
+        $firewallConfigId = self::PROVIDER_PREPARATION_LISTENER_ID_PREFIX.$firewallName;
+        $container
+            ->setDefinition($firewallConfigId, new ChildDefinition(self::PROVIDER_PREPARATION_LISTENER_DEFINITION_ID))
+            ->replaceArgument(3, $firewallName)
+            ->replaceArgument(4, $config['prepare_on_login'] ?? self::DEFAULT_PREPARE_ON_LOGIN)
+            ->replaceArgument(5, $config['prepare_on_access_denied'] ?? self::DEFAULT_PREPARE_ON_ACCESS_DENIED)
+            ->addTag('kernel.event_listener', ['event' => 'security.authentication.success', 'method' => 'onLogin', 'priority' => PHP_INT_MAX])
+            ->addTag('kernel.event_listener', ['event' => 'scheb_two_factor.authentication.require', 'method' => 'onAccessDenied'])
+            ->addTag('kernel.event_listener', ['event' => 'scheb_two_factor.authentication.form', 'method' => 'onTwoFactorForm'])
+            ->addTag('kernel.event_listener', ['event' => 'kernel.finish_request', 'method' => 'onKernelFinishRequest']);
+    }
+
+    private function createAuthenticationSuccessEventSuppressor(ContainerBuilder $container, string $firewallName): void
+    {
+        $firewallConfigId = self::AUTHENTICATION_SUCCESS_EVENT_SUPPRESSOR_ID_PREFIX.$firewallName;
+        $container
+            ->setDefinition($firewallConfigId, new ChildDefinition(self::AUTHENTICATION_SUCCESS_EVENT_SUPPRESSOR_ID))
+            ->replaceArgument(0, $firewallName)
+            ->addTag('kernel.event_listener', ['event' => 'security.authentication.success', 'method' => 'onLogin', 'priority' => PHP_INT_MAX - 1]);
     }
 
     public function getPosition()
